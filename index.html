@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>산-염기 중화 반응 시뮬레이터</title>
+    <style>
+        :root {
+            --beaker-border-color: #9ca3af;
+            --background-color: #f9fafb;
+            --text-color: #1f2937;
+            --button-bg-color: #3b82f6;
+            --button-hover-bg-color: #2563eb;
+            --button-text-color: #ffffff;
+            --ion-h-color: #ffffff;
+            --ion-cl-color: #16a34a;
+            --ion-na-color: #f59e0b;
+            --ion-oh-color: #ea580c;
+            --molecule-h2o-color: #3b82f6;
+            --border-radius: 0.75rem;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            user-select: none;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        #simulation-container {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            width: 90%;
+            max-width: 800px;
+            height: 400px;
+        }
+
+        .beaker-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        #initial-beakers.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #mixed-beaker-wrapper.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #initial-beakers {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 2rem;
+            width: 100%;
+            position: absolute;
+        }
+        
+        #mixed-beaker-wrapper {
+            position: absolute;
+        }
+
+        .beaker {
+            border: 3px solid var(--beaker-border-color);
+            border-top: none;
+            background: linear-gradient(to top, rgba(203, 213, 225, 0.4), rgba(229, 231, 235, 0.1));
+            position: relative;
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            margin-top: 1rem; /* Added margin to compensate for label removal */
+        }
+
+        .beaker::before, .beaker::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 100%;
+            background-color: transparent;
+        }
+
+        .beaker::before {
+            left: -10px;
+            border-bottom: 3px solid var(--beaker-border-color);
+            border-left: 3px solid var(--beaker-border-color);
+            border-bottom-left-radius: 10px;
+        }
+
+        .beaker::after {
+            right: -10px;
+            border-bottom: 3px solid var(--beaker-border-color);
+            border-right: 3px solid var(--beaker-border-color);
+            border-bottom-right-radius: 10px;
+        }
+        
+        #hcl-beaker { width: 200px; height: 300px; }
+        #naoh-beaker { width: 200px; height: 300px; }
+        #mixed-beaker { width: 420px; height: 350px; }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #plus-sign {
+            font-size: 3rem;
+            color: var(--beaker-border-color);
+            padding-bottom: 120px;
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        #plus-sign.hidden {
+            opacity: 0;
+        }
+
+        #controls {
+            display: flex;
+            gap: 1rem;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--border-radius);
+            background-color: var(--button-bg-color);
+            color: var(--button-text-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        button:hover {
+            background-color: var(--button-hover-bg-color);
+        }
+        
+        /* Pouring Animation */
+        .pour-animation {
+            animation: pour 1.5s ease-in-out forwards;
+        }
+
+        @keyframes pour {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-110px, -50px) rotate(-15deg); }
+            80% { transform: translate(-110px, -50px) rotate(-75deg); }
+            100% { transform: translate(-110px, -50px) rotate(-75deg); opacity: 0; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>산-염기 중화 반응 시뮬레이터</h1>
+
+    <div id="simulation-container">
+        <!-- Initial Beakers -->
+        <div id="initial-beakers">
+            <div class="beaker-wrapper" id="hcl-beaker-wrapper">
+                <div class="beaker" id="hcl-beaker">
+                    <canvas id="hcl-canvas"></canvas>
+                </div>
+            </div>
+            
+            <div id="plus-sign">+</div>
+
+            <div class="beaker-wrapper" id="naoh-beaker-wrapper">
+                <div class="beaker" id="naoh-beaker">
+                    <canvas id="naoh-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mixed Beaker -->
+        <div class="beaker-wrapper hidden" id="mixed-beaker-wrapper">
+            <div class="beaker" id="mixed-beaker">
+                 <canvas id="mixed-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button id="start-btn">반응 시작</button>
+        <button id="reset-btn">초기화</button>
+    </div>
+
+    <script>
+        // DOM Elements
+        const hclCanvas = document.getElementById('hcl-canvas');
+        const naohCanvas = document.getElementById('naoh-canvas');
+        const mixedCanvas = document.getElementById('mixed-canvas');
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+
+        const initialBeakers = document.getElementById('initial-beakers');
+        const naohBeakerWrapper = document.getElementById('naoh-beaker-wrapper');
+        const plusSign = document.getElementById('plus-sign');
+        const mixedBeakerWrapper = document.getElementById('mixed-beaker-wrapper');
+
+        // Canvas Contexts
+        const hclCtx = hclCanvas.getContext('2d');
+        const naohCtx = naohCanvas.getContext('2d');
+        const mixedCtx = mixedCanvas.getContext('2d');
+
+        // Particle Configuration
+        const PARTICLE_CONFIG = {
+            'H+': { radius: 6, color: 'var(--ion-h-color)', stroke: '#333' },
+            'Cl-': { radius: 15, color: 'var(--ion-cl-color)' },
+            'Na+': { radius: 12, color: 'var(--ion-na-color)' },
+            'OH-': { radius: 12, color: 'var(--ion-oh-color)' },
+            'H2O': { radius: 14, color: 'var(--molecule-h2o-color)' }
+        };
+        const NUM_PARTICLES = 8;
+        
+        let hclParticles = [];
+        let naohParticles = [];
+        let mixedParticles = [];
+        
+        let animationFrameId;
+        let simulationState = 'initial'; // 'initial', 'mixing', 'reacting', 'finished'
+
+        // Particle Class
+        class Particle {
+            constructor(type, canvas) {
+                this.type = type;
+                this.canvas = canvas;
+                this.radius = PARTICLE_CONFIG[type].radius;
+                this.color = getComputedStyle(document.documentElement).getPropertyValue(PARTICLE_CONFIG[type].color.slice(4, -1));
+                if (PARTICLE_CONFIG[type].stroke) {
+                     this.stroke = PARTICLE_CONFIG[type].stroke;
+                }
+                
+                this.x = this.radius + Math.random() * (this.canvas.width - 2 * this.radius);
+                this.y = this.radius + Math.random() * (this.canvas.height - 2 * this.radius);
+                this.vx = (Math.random() - 0.5) * 1;
+                this.vy = (Math.random() - 0.5) * 1;
+
+                this.target = null; // For H+ and OH- attraction
+            }
+
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                if (this.stroke) {
+                    ctx.strokeStyle = this.stroke;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+
+            update() {
+                // Wall collision
+                if (this.x + this.radius > this.canvas.width || this.x - this.radius < 0) this.vx *= -1;
+                if (this.y + this.radius > this.canvas.height || this.y - this.radius < 0) this.vy *= -1;
+
+                // Attraction logic for reacting particles
+                if (simulationState === 'reacting' && (this.type === 'H+' || this.type === 'OH-') && this.target) {
+                    const dx = this.target.x - this.x;
+                    const dy = this.target.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const attractionForce = 0.05;
+                    this.vx += (dx / dist) * attractionForce;
+                    this.vy += (dy / dist) * attractionForce;
+                    
+                    // Speed limit
+                    const maxSpeed = 2;
+                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                    if (speed > maxSpeed) {
+                        this.vx = (this.vx / speed) * maxSpeed;
+                        this.vy = (this.vy / speed) * maxSpeed;
+                    }
+                }
+                
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+        }
+        
+        function setCanvasSize() {
+            [hclCanvas, naohCanvas, mixedCanvas].forEach(canvas => {
+                const beaker = canvas.parentElement;
+                canvas.width = beaker.clientWidth;
+                canvas.height = beaker.clientHeight;
+            });
+        }
+
+        function init() {
+            simulationState = 'initial';
+            setCanvasSize();
+
+            hclParticles = [];
+            naohParticles = [];
+            mixedParticles = [];
+            
+            startBtn.disabled = false;
+            initialBeakers.classList.remove('hidden');
+            plusSign.classList.remove('hidden');
+            naohBeakerWrapper.classList.remove('pour-animation');
+            mixedBeakerWrapper.classList.add('hidden');
+
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                hclParticles.push(new Particle('H+', hclCanvas));
+                hclParticles.push(new Particle('Cl-', hclCanvas));
+                naohParticles.push(new Particle('Na+', naohCanvas));
+                naohParticles.push(new Particle('OH-', naohCanvas));
+            }
+            
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animate();
+        }
+
+        function animate() {
+            hclCtx.clearRect(0, 0, hclCanvas.width, hclCanvas.height);
+            hclParticles.forEach(p => {
+                p.update();
+                p.draw(hclCtx);
+            });
+
+            naohCtx.clearRect(0, 0, naohCanvas.width, naohCanvas.height);
+            naohParticles.forEach(p => {
+                p.update();
+                p.draw(naohCtx);
+            });
+            
+            if (simulationState !== 'initial') {
+                mixedCtx.clearRect(0, 0, mixedCanvas.width, mixedCanvas.height);
+                mixedParticles.forEach(p => {
+                    p.update();
+                    p.draw(mixedCtx);
+                });
+            }
+
+            if (simulationState === 'reacting') {
+                handleReaction();
+            }
+
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        function startReaction() {
+            if (simulationState !== 'initial') return;
+            simulationState = 'mixing';
+            startBtn.disabled = true;
+
+            plusSign.classList.add('hidden');
+            naohBeakerWrapper.classList.add('pour-animation');
+
+            setTimeout(() => {
+                initialBeakers.classList.add('hidden');
+                mixedBeakerWrapper.classList.remove('hidden');
+
+                // Transfer particles to the mixed beaker
+                mixedParticles = [...hclParticles, ...naohParticles];
+                hclParticles = [];
+                naohParticles = [];
+                mixedParticles.forEach(p => {
+                    p.canvas = mixedCanvas;
+                    // Give them a little push towards the center
+                    p.x = p.radius + Math.random() * (mixedCanvas.width - 2 * p.radius);
+                    p.y = p.radius + Math.random() * (mixedCanvas.height - 2 * p.radius);
+                });
+                
+                simulationState = 'reacting';
+            }, 1500);
+        }
+
+        function handleReaction() {
+            const h_ions = mixedParticles.filter(p => p.type === 'H+');
+            const oh_ions = mixedParticles.filter(p => p.type === 'OH-');
+
+            if (h_ions.length === 0 || oh_ions.length === 0) {
+                simulationState = 'finished';
+                return;
+            }
+
+            // Assign targets for attraction
+            h_ions.forEach(h => {
+                if (!h.target || !mixedParticles.includes(h.target)) {
+                    let closest_oh = null;
+                    let min_dist = Infinity;
+                    oh_ions.forEach(oh => {
+                        if (!oh.target || oh.target === h) {
+                            const dx = h.x - oh.x;
+                            const dy = h.y - oh.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < min_dist) {
+                                min_dist = dist;
+                                closest_oh = oh;
+                            }
+                        }
+                    });
+                    if (closest_oh) {
+                       h.target = closest_oh;
+                       closest_oh.target = h;
+                    }
+                }
+            });
+
+            // Check for collisions and react
+            for (let i = h_ions.length - 1; i >= 0; i--) {
+                const h = h_ions[i];
+                if (!h.target) continue;
+                
+                const oh = h.target;
+                const dx = h.x - oh.x;
+                const dy = h.y - oh.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < h.radius + oh.radius) {
+                    // Create water molecule at the point of collision
+                    const water = new Particle('H2O', mixedCanvas);
+                    water.x = (h.x + oh.x) / 2;
+                    water.y = (h.y + oh.y) / 2;
+                    water.vx = (h.vx + oh.vx) / 4; // slow down after reaction
+                    water.vy = (h.vy + oh.vy) / 4;
+
+                    mixedParticles.push(water);
+
+                    // Remove reacted ions
+                    mixedParticles = mixedParticles.filter(p => p !== h && p !== oh);
+                }
+            }
+        }
+        
+        // Event Listeners
+        startBtn.addEventListener('click', startReaction);
+        resetBtn.addEventListener('click', init);
+        window.addEventListener('resize', init);
+
+        // Initial call
+        init();
+
+    </script>
+</body>
+</html>
