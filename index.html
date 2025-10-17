@@ -90,28 +90,6 @@
             margin-top: 1rem; /* Added margin to compensate for label removal */
         }
 
-        .beaker::before, .beaker::after {
-            content: '';
-            position: absolute;
-            width: 10px;
-            height: 100%;
-            background-color: transparent;
-        }
-
-        .beaker::before {
-            left: -10px;
-            border-bottom: 3px solid var(--beaker-border-color);
-            border-left: 3px solid var(--beaker-border-color);
-            border-bottom-left-radius: 10px;
-        }
-
-        .beaker::after {
-            right: -10px;
-            border-bottom: 3px solid var(--beaker-border-color);
-            border-right: 3px solid var(--beaker-border-color);
-            border-bottom-right-radius: 10px;
-        }
-        
         #hcl-beaker { width: 200px; height: 300px; }
         #naoh-beaker { width: 200px; height: 300px; }
         #mixed-beaker { width: 420px; height: 350px; }
@@ -455,3 +433,4 @@
     </script>
 </body>
 </html>
+
